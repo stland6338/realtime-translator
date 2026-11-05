@@ -1,0 +1,21 @@
+{
+  "name": "realtime-translator",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:mock": "wrangler dev --env mock",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc",
+    "test": "node test/e2e.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261104.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.158.0"
+  },
+  "private": true
+}
