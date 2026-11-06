@@ -33,6 +33,14 @@ npm run deploy              # https://realtime-translator.<subdomain>.workers.de
 ブラウザで開き、ルーム名・表示名・自分の言語を選んで参加 → 「招待リンクをコピー」で他の人を招待 → 「🎙 話す」。
 各参加者は自分の言語で字幕を見ます。「読み上げ」をオンにすると確定訳を音声合成で読み上げます。
 
+### 自動デプロイ (GitHub Actions)
+
+`main` へのプッシュでテスト → Cloudflare へ自動デプロイします (`.github/workflows/deploy.yml`)。
+リポジトリの Settings → Secrets and variables → Actions に次の 2 つを登録してください。
+
+- `CLOUDFLARE_API_TOKEN`: テンプレート「Edit Cloudflare Workers」で作成した API トークン
+- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare ダッシュボードの Workers & Pages 画面右側に表示されるアカウント ID
+
 ### ローカル開発
 
 ```bash

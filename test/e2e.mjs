@@ -35,7 +35,7 @@ for (const c of [en1, ko, en2]) {
   assert(fin && fin.lang === c.lang && fin.text.includes("こんにちは皆さん。"), `${c.name}(${c.lang}) got final translation: ${fin?.text}`);
   assert(tr.every((m) => m.lang === c.lang), `${c.name} only receives its own language`);
   assert(tr.length <= 4, `${c.name} interim coalesced (${tr.length} translation msgs)`);
-  console.log(`   latency to final for ${c.name}: ${(fin.t - t0).toFixed(1)}ms`);
+  console.log(`   latency to final for ${c.name}: ${((fin?.t ?? NaN) - t0).toFixed(1)}ms`);
 }
 const src = en1.msgs.filter((m) => m.type === "source");
 assert(src.at(-1)?.final && src.at(-1).text === "こんにちは皆さん。", "source broadcast incl. final");
