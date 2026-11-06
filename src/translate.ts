@@ -2,7 +2,10 @@ import { LANGUAGES } from "./languages";
 
 export interface Env {
   AI: Ai;
-  ROOM: DurableObjectNamespace;
+  ROOM: DurableObjectNamespace<import("./room").Room>;
+  REGISTRY: DurableObjectNamespace<import("./registry").Registry>;
+  /** 管理 API 用トークン (wrangler secret / GitHub Secrets で設定)。未設定なら管理 API は無効。 */
+  ADMIN_TOKEN?: string;
   FINAL_TRANSLATOR?: string;
   MOCK_AI?: string;
 }

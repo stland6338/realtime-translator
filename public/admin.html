@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>ルーム管理</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .wrap { max-width: 860px; margin: 24px auto; padding: 0 16px; display: grid; gap: 14px; }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button.danger { background: var(--live); color: #fff; border-color: var(--live); }
+    #msg { min-height: 1.4em; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 style="margin:0">ルーム管理</h1>
+    <div class="row">
+      <input id="token" type="password" placeholder="ADMIN_TOKEN" style="flex:1;min-width:200px" />
+      <button id="load" class="primary">一覧を更新</button>
+      <label class="toggle"><input type="checkbox" id="purge" /> 履歴も削除する</label>
+      <button id="closeAll" class="danger">すべて終了</button>
+    </div>
+    <div id="msg" class="muted"></div>
+    <table>
+      <thead><tr><th>ルーム</th><th>接続数</th><th>参加者</th><th>最終更新</th><th></th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" class="muted">トークンを入力して「一覧を更新」</td></tr></tbody>
+    </table>
+  </div>
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    try { $("token").value = sessionStorage.getItem("adminToken") || ""; } catch {}
+    const api = async (path, method = "GET") => {
+      try { sessionStorage.setItem("adminToken", $("token").value); } catch {}
+      const r = await fetch(path, { method, headers: { Authorization: `Bearer ${$("token").value}` } });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || r.status);
+      return j;
+    };
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    async function load() {
+      try {
+        const { rooms } = await api("/api/admin/rooms");
+        $("msg").textContent = `稼働中のルーム: ${rooms.length} 件`;
+        $("rows").innerHTML = rooms.length
+          ? rooms.map((r) => `<tr><td>${esc(r.name)}</td><td>${r.connections}</td>
+              <td>${r.participants.map((p) => `${esc(p.name)} (${esc(p.lang)})`).join(", ")}</td>
+              <td>${new Date(r.updatedAt).toLocaleString()}</td>
+              <td><button class="danger" data-room="${esc(r.name)}">終了</button></td></tr>`).join("")
+          : `<tr><td colspan="5" class="muted">稼働中のルームはありません</td></tr>`;
+      } catch (e) { $("msg").textContent = "エラー: " + e.message; }
+    }
+    $("load").onclick = load;
+    $("rows").onclick = async (e) => {
+      const room = e.target.dataset?.room;
+      if (!room || !confirm(`ルーム「${room}」の全接続を切断しますか?`)) return;
+      try {
+        const r = await api(`/api/admin/rooms/${encodeURIComponent(room)}/close${$("purge").checked ? "?purge=1" : ""}`, "POST");
+        $("msg").textContent = `${room}: ${r.closed} 件の接続を切断しました${r.purged ? " (履歴削除)" : ""}`;
+        setTimeout(load, 500);
+      } catch (err) { $("msg").textContent = "エラー: " + err.message; }
+    };
+    $("closeAll").onclick = async () => {
+      if (!confirm("すべてのルームの接続を切断しますか?")) return;
+      try {
+        const r = await api(`/api/admin/close-all${$("purge").checked ? "?purge=1" : ""}`, "POST");
+        $("msg").textContent = `${r.results.length} ルームを終了しました`;
+        setTimeout(load, 500);
+      } catch (err) { $("msg").textContent = "エラー: " + err.message; }
+    };
+    if ($("token").value) load();
+  </script>
+</body>
+</html>

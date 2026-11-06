@@ -41,6 +41,22 @@ npm run deploy              # https://realtime-translator.<subdomain>.workers.de
 - `CLOUDFLARE_API_TOKEN`: テンプレート「Edit Cloudflare Workers」で作成した API トークン
 - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare ダッシュボードの Workers & Pages 画面右側に表示されるアカウント ID
 
+### Durable Object の動き方と強制終了
+
+- ルーム名ごとに Durable Object が 1 つだけ作られます。同じルームに何人・何タブ入っても 1 インスタンスです。
+- 誰も話していない間はハイバネーション (メモリから退避) し、時間課金は発生しません。全員が退出すると数秒後に停止します。
+- 履歴 (直近 50 件) はルームごとの DO ストレージに残ります。
+
+管理画面 `/admin.html` (または API) で稼働中のルーム一覧の確認と、強制終了ができます。`ADMIN_TOKEN` を GitHub Secrets に登録すると、デプロイ時に Worker のシークレットへ反映されます (未設定時は管理 API は 503)。
+
+```bash
+TOKEN=...; BASE=https://realtime-translator.<subdomain>.workers.dev
+curl -H "Authorization: Bearer $TOKEN" $BASE/api/admin/rooms                                 # 一覧
+curl -X POST -H "Authorization: Bearer $TOKEN" "$BASE/api/admin/rooms/<room>/close"          # 切断
+curl -X POST -H "Authorization: Bearer $TOKEN" "$BASE/api/admin/rooms/<room>/close?purge=1"  # 切断+履歴削除
+curl -X POST -H "Authorization: Bearer $TOKEN" "$BASE/api/admin/close-all"                   # 全ルーム切断
+```
+
 ### ローカル開発
 
 ```bash

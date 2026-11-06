@@ -6,9 +6,15 @@
   "assets": { "directory": "./public" },
   "ai": { "binding": "AI" },
   "durable_objects": {
-    "bindings": [{ "name": "ROOM", "class_name": "Room" }]
+    "bindings": [
+      { "name": "ROOM", "class_name": "Room" },
+      { "name": "REGISTRY", "class_name": "Registry" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Room"] },
+    { "tag": "v2", "new_sqlite_classes": ["Registry"] }
+  ],
   "vars": {
     // 確定文の翻訳モデル: "m2m100"(速い) または "llm"(高品質・文脈考慮)
     "FINAL_TRANSLATOR": "llm",
@@ -19,8 +25,13 @@
   // Workers AI を使わずに動作確認する環境: npm run dev:mock
   "env": {
     "mock": {
-      "durable_objects": { "bindings": [{ "name": "ROOM", "class_name": "Room" }] },
-      "vars": { "FINAL_TRANSLATOR": "llm", "MOCK_AI": "1" }
+      "durable_objects": {
+        "bindings": [
+          { "name": "ROOM", "class_name": "Room" },
+          { "name": "REGISTRY", "class_name": "Registry" }
+        ]
+      },
+      "vars": { "FINAL_TRANSLATOR": "llm", "MOCK_AI": "1", "ADMIN_TOKEN": "test-admin" }
     }
   }
 }

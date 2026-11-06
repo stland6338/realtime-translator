@@ -75,8 +75,9 @@ function connect() {
   ws.binaryType = "arraybuffer";
   state.ws = ws;
   ws.onopen = () => { state.retry = 0; $("status").classList.add("on"); };
-  ws.onclose = () => {
+  ws.onclose = (ev) => {
     $("status").classList.remove("on");
+    if (ev.code === 4001 || state.closedByAdmin) return onAdminClosed(); // 再接続しない
     const delay = Math.min(10000, 500 * 2 ** state.retry++);
     setTimeout(connect, delay);
   };
@@ -87,12 +88,23 @@ function connect() {
 }
 setInterval(() => state.ws?.readyState === 1 && state.ws.send("ping"), 25000);
 
+function onAdminClosed() {
+  state.closedByAdmin = true;
+  try { state.ws?.close(); } catch {}
+  stopMic();
+  $("status").classList.remove("on");
+  $("participants").textContent = "このルームは管理者によって終了されました。再参加するにはページを再読み込みしてください。";
+}
+
 function send(obj) {
   if (state.ws?.readyState === 1) state.ws.send(typeof obj === "string" || obj instanceof ArrayBuffer ? obj : JSON.stringify(obj));
 }
 
 function onMessage(m) {
   switch (m.type) {
+    case "closed": // 管理者による終了通知 (close フレームより先に届く)
+      onAdminClosed();
+      break;
     case "welcome":
       state.myId = m.id;
       break;
