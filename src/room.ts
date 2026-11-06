@@ -47,6 +47,8 @@ export class Room extends DurableObject<Env> {
       return new Response("expected websocket", { status: 426 });
     }
     const url = new URL(req.url);
+    const roomName = req.headers.get("X-Room-Name");
+    if (roomName && (await this.ctx.storage.get("name")) !== roomName) await this.ctx.storage.put("name", roomName);
     const lang = url.searchParams.get("lang") ?? "en";
     const att: Attachment = {
       id: crypto.randomUUID().slice(0, 8),
@@ -274,6 +276,29 @@ export class Room extends DurableObject<Env> {
     await this.ctx.storage.put("history", hist);
   }
 
+  // ---------------------------------------------------------------- 管理 (RPC)
+
+  /** 全接続を強制的に切断する。purge=true なら履歴などの保存データも削除する。 */
+  async adminClose(purge: boolean): Promise<{ closed: number }> {
+    const sockets = this.ctx.getWebSockets();
+    for (const ws of sockets) {
+      try {
+        safeSend(ws, { type: "closed", reason: "admin" });
+        ws.close(4001, "closed by admin");
+      } catch {}
+    }
+    const name = await this.ctx.storage.get<string>("name");
+    if (purge) {
+      await this.ctx.storage.deleteAll();
+      this.cache.clear();
+      this.context = [];
+    }
+    if (name) await this.env.REGISTRY.get(this.env.REGISTRY.idFromName("global")).report({
+      name, connections: 0, participants: [], updatedAt: Date.now(),
+    });
+    return { closed: sockets.length };
+  }
+
   // ---------------------------------------------------------------- 配信
 
   private sockets(): { ws: WebSocket; att: Attachment }[] {
@@ -302,6 +327,23 @@ export class Room extends DurableObject<Env> {
       .filter(({ ws }) => ws !== exclude && ws.readyState === WebSocket.OPEN)
       .map(({ att }) => ({ id: att.id, name: att.name, lang: att.lang }));
     this.broadcast({ type: "presence", participants });
+    this.ctx.waitUntil(this.reportToRegistry(participants));
+  }
+
+  /** 稼働中ルーム一覧 (Registry) に接続状況を報告する。 */
+  private async reportToRegistry(participants: { name: string; lang: string }[]) {
+    try {
+      const name = await this.ctx.storage.get<string>("name");
+      if (!name) return;
+      await this.env.REGISTRY.get(this.env.REGISTRY.idFromName("global")).report({
+        name,
+        connections: participants.length,
+        participants: participants.map(({ name, lang }) => ({ name, lang })),
+        updatedAt: Date.now(),
+      });
+    } catch (e) {
+      console.error("registry report failed", e);
+    }
   }
 }
 

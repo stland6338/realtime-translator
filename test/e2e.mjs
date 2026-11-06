@@ -72,5 +72,29 @@ assert(en1.msgs.some((m) => m.type === "translation" && m.final && m.text.includ
 const pres = en1.msgs.filter((m) => m.type === "presence").at(-1);
 assert(pres?.participants.length === 5, `presence lists 5 participants (${pres?.participants.length})`);
 
-for (const c of [sp, en1, ko, en2, late]) c.ws.close();
+// ---- 管理 API
+const HTTP = BASE.replace(/^ws/, "http");
+const auth = { Authorization: "Bearer test-admin" };
+assert((await fetch(`${HTTP}/api/admin/rooms`)).status === 401, "admin API rejects missing token");
+assert((await fetch(`${HTTP}/api/admin/rooms`, { headers: { Authorization: "Bearer wrong" } })).status === 401, "admin API rejects wrong token");
+await sleep(200);
+const listed = await (await fetch(`${HTTP}/api/admin/rooms`, { headers: auth })).json();
+const mine = listed.rooms.find((r) => r.name === room);
+assert(mine?.connections === 5, `admin list shows room with 5 connections (${mine?.connections})`);
+
+const closes = [sp, en1, ko, en2, late].map((c) => new Promise((r) => (c.ws.onclose = (e) => r(e.code))));
+const res = await (await fetch(`${HTTP}/api/admin/rooms/${room}/close?purge=1`, { method: "POST", headers: auth })).json();
+assert(res.closed === 5 && res.purged, `force close reports 5 closed (${JSON.stringify(res)})`);
+await sleep(200);
+assert([sp, en1, ko, en2, late].every((c) => c.msgs.some((m) => m.type === "closed")), "all clients notified of admin close");
+// Node の WebSocket は TCP 切断まで close イベントを遅らせる (ローカル dev では約 10 秒) ため長めに待つ
+const codes = await Promise.race([Promise.all(closes), sleep(15000).then(() => [])]);
+assert(codes.length === 5 && codes.every((c) => c === 4001), `all clients closed with 4001 (${codes})`);
+await sleep(200);
+const after = await (await fetch(`${HTTP}/api/admin/rooms`, { headers: auth })).json();
+assert(!after.rooms.some((r) => r.name === room), "closed room removed from list");
+const again = await client("again", "en");
+await sleep(300);
+assert(again.msgs.find((m) => m.type === "history")?.items.length === 0, "purge cleared history");
+again.ws.close();
 await sleep(100);
