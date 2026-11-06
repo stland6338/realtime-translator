@@ -74,6 +74,18 @@ header {
 .interim { color: var(--interim); }
 #meter { height: 4px; background: var(--line); }
 #meterBar { height: 100%; width: 0; background: var(--accent); transition: width 60ms linear; }
+dialog.invite {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--fg);
+  padding: 20px; width: min(360px, calc(100vw - 32px)); text-align: center;
+}
+dialog.invite::backdrop { background: rgb(0 0 0 / 0.45); }
+dialog.invite h2 { margin: 0 0 4px; font-size: 18px; }
+dialog.invite p { margin: 0 0 12px; font-size: 13px; }
+/* QR は読み取りやすさのためダークモードでも白地に黒 */
+.qr { background: #fff; border-radius: 8px; padding: 8px; width: min(260px, 100%); margin: 0 auto; }
+.qr svg { display: block; width: 100%; height: auto; }
+.url { display: block; margin: 12px 0; font-size: 12px; word-break: break-all; color: var(--muted); }
+dialog.invite .row { display: flex; gap: 8px; justify-content: center; }
 @media (max-width: 600px) {
   .seg .tr { font-size: 19px; }
   header { padding: 8px 12px; }
