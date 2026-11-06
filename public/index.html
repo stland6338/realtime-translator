@@ -21,7 +21,8 @@
       <div class="title">
         <strong id="roomTitle"></strong>
         <span id="status" class="dot" title="接続状態"></span>
-        <button id="shareBtn" class="ghost">招待リンクをコピー</button>
+        <button id="inviteBtn" class="ghost">招待 (QR コード)</button>
+        <button id="leaveBtn" class="ghost">退出</button>
       </div>
       <div class="controls">
         <select id="langSwitch" title="表示言語"></select>
@@ -37,6 +38,17 @@
     <div id="captions" class="captions"></div>
     <div id="meter"><div id="meterBar"></div></div>
   </section>
+
+  <dialog id="inviteDlg" class="invite">
+    <h2>ルーム「<span id="inviteRoom"></span>」に招待</h2>
+    <p class="muted">スマホのカメラで読み取ると、このルームの参加画面が開きます。</p>
+    <div id="qr" class="qr"></div>
+    <code id="inviteUrl" class="url"></code>
+    <div class="row">
+      <button id="copyBtn" class="primary">リンクをコピー</button>
+      <button id="closeDlg">閉じる</button>
+    </div>
+  </dialog>
 
   <script src="/app.js" type="module"></script>
 </body>

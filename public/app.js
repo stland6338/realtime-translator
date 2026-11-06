@@ -1,3 +1,5 @@
+import qrcode from "/vendor/qrcode.mjs";
+
 // ------------------------------------------------------------------ 定数
 const LOCALES = {
   ja: "ja-JP", en: "en-US", zh: "zh-CN", ko: "ko-KR", es: "es-ES", fr: "fr-FR", de: "de-DE",
@@ -53,12 +55,52 @@ $("joinBtn").onclick = () => {
   connect();
 };
 if (params.get("room") && state.name) $("joinBtn").click();
+else if (params.get("room")) $("name").focus(); // QR から来た初参加者は名前入力へ
 
-$("shareBtn").onclick = async () => {
-  await navigator.clipboard.writeText(`${location.origin}/?room=${encodeURIComponent(state.room)}`);
-  $("shareBtn").textContent = "コピーしました";
-  setTimeout(() => ($("shareBtn").textContent = "招待リンクをコピー"), 1500);
+// ------------------------------------------------------------------ 招待 (リンク + QR コード)
+const inviteUrl = () => `${location.origin}/?room=${encodeURIComponent(state.room)}`;
+$("inviteBtn").onclick = () => {
+  const url = inviteUrl();
+  const qr = qrcode(0, "M");
+  qr.addData(url);
+  qr.make();
+  $("qr").innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  $("inviteRoom").textContent = state.room;
+  $("inviteUrl").textContent = url;
+  $("inviteDlg").showModal();
 };
+$("copyBtn").onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(inviteUrl());
+    $("copyBtn").textContent = "コピーしました";
+  } catch {
+    $("copyBtn").textContent = "コピーできませんでした";
+  }
+  setTimeout(() => ($("copyBtn").textContent = "リンクをコピー"), 1500);
+};
+$("closeDlg").onclick = () => $("inviteDlg").close();
+$("inviteDlg").onclick = (e) => { if (e.target === $("inviteDlg")) $("inviteDlg").close(); }; // 背景クリックで閉じる
+
+// ------------------------------------------------------------------ 退出
+$("leaveBtn").onclick = () => {
+  if (!confirm(`ルーム「${state.room}」から退出しますか?`)) return;
+  leaveRoom();
+};
+function leaveRoom() {
+  state.leaving = true;
+  clearTimeout(state.reconnectTimer);
+  stopMic();
+  try { state.ws?.close(1000, "leave"); } catch {}
+  state.ws = null;
+  segs.clear();
+  $("captions").innerHTML = "";
+  $("participants").innerHTML = "";
+  $("status").classList.remove("on");
+  history.replaceState(null, "", "/");
+  $("app").hidden = true;
+  $("join").hidden = false;
+  $("room").value = state.room;
+}
 $("langSwitch").onchange = () => {
   state.lang = $("langSwitch").value;
   localStorage.setItem("lang", state.lang);
@@ -74,12 +116,15 @@ function connect() {
   const ws = new WebSocket(`${proto}://${location.host}/api/rooms/${encodeURIComponent(state.room)}/ws?${qs}`);
   ws.binaryType = "arraybuffer";
   state.ws = ws;
+  state.leaving = false;
+  state.closedByAdmin = false;
   ws.onopen = () => { state.retry = 0; $("status").classList.add("on"); };
   ws.onclose = (ev) => {
+    if (state.leaving || ws !== state.ws) return; // 自分で退出した / 古い接続
     $("status").classList.remove("on");
     if (ev.code === 4001 || state.closedByAdmin) return onAdminClosed(); // 再接続しない
     const delay = Math.min(10000, 500 * 2 ** state.retry++);
-    setTimeout(connect, delay);
+    state.reconnectTimer = setTimeout(connect, delay);
   };
   ws.onmessage = (ev) => {
     if (ev.data === "pong") return;
